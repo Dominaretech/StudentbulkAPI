@@ -292,22 +292,6 @@ Libraries
 
 ---
 
-#  Future Enhancements
-
-- Dashboard APIs
-- Export Excel
-- Export PDF
-- JWT Authentication
-- Role-Based Access Control
-- Branch Management
-- Multi-Branch Support
-- Multi-Cluster Support
-- Swagger Documentation
-- Docker Support
-- Unit Testing
-
----
-
 #  Architecture Highlights
 
 - MVC Architecture
@@ -320,3 +304,5 @@ Libraries
 - Production-Ready Code Organization
 
 ---
+## exprt excal 
+| GET | `/api/students/export` |
