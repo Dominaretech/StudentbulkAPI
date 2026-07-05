@@ -8,26 +8,50 @@ const getStudents = async (req, res) => {
 
     const search = req.query.search || "";
 
+    const className = req.query.class || "";
+
+    const section = req.query.section || "";
+
+    const gender = req.query.gender || "";
+
+    const yearOfJoining = req.query.year || "";
+
     const skip = (page - 1) * limit;
 
-    const filter = search
-      ? {
-          $or: [
-            {
-              studentName: {
-                $regex: search,
-                $options: "i",
-              },
-            },
-            {
-              admissionId: {
-                $regex: search,
-                $options: "i",
-              },
-            },
-          ],
-        }
-      : {};
+    const filter = {};
+
+    if (search) {
+      filter.$or = [
+        {
+          studentName: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          admissionId: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+      ];
+    }
+
+    if (className) {
+      filter.className = className;
+    }
+
+    if (section) {
+      filter.section = section;
+    }
+
+    if (gender) {
+      filter.gender = gender;
+    }
+
+    if (yearOfJoining) {
+      filter.yearOfJoining = Number(yearOfJoining);
+    }
 
     const result = await studentRepository.getStudents(filter, skip, limit);
 
@@ -103,30 +127,51 @@ const deleteStudent = async (req, res) => {
     });
   }
 };
+
 const deleteAllStudents = async (req, res) => {
   try {
     const result = await studentRepository.deleteAllStudents();
 
     return res.json({
       success: true,
-
       deletedCount: result.deletedCount,
-
       message: "All students deleted successfully",
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-
       message: error.message,
     });
   }
 };
+// Get all filter values
+const getFilters = async (req, res) => {
 
+  try {
+
+    const filters =
+      await studentRepository.getFilters();
+
+    return res.json({
+      success: true,
+      data: filters
+    });
+
+  } catch (error) {
+
+    return res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
+};
 module.exports = {
   getStudents,
   getStudentById,
   updateStudent,
   deleteStudent,
   deleteAllStudents,
+  getFilters
 };
