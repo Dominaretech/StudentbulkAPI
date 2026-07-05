@@ -5,7 +5,7 @@ const router =
 express.Router();
 
 const upload =
-require("../middlewares/upload.middleware");
+require("../middleware/upload.middleware");
 
 const {
   previewUpload

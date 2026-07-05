@@ -1,177 +1,139 @@
 const studentRepository = require("../repositories/student.repository");
+const asyncHandler = require("../middleware/asyncHandler");
 
-const getStudents = async (req, res) => {
-  try {
-    const page = Number(req.query.page) || 1;
+const ApiError = require("../utils/ApiError");
 
-    const limit = Number(req.query.limit) || 10;
+const { successResponse } = require("../utils/response");
 
-    const search = req.query.search || "";
+// Get students with search, filters and pagination
+const getStudents = asyncHandler(async (req, res) => {
+  const page = Number(req.query.page) || 1;
 
-    const className = req.query.class || "";
+  const limit = Number(req.query.limit) || 10;
 
-    const section = req.query.section || "";
+  const search = req.query.search || "";
 
-    const gender = req.query.gender || "";
+  const className = req.query.class || "";
 
-    const yearOfJoining = req.query.year || "";
+  const section = req.query.section || "";
 
-    const skip = (page - 1) * limit;
+  const gender = req.query.gender || "";
 
-    const filter = {};
+  const yearOfJoining = req.query.year || "";
 
-    if (search) {
-      filter.$or = [
-        {
-          studentName: {
-            $regex: search,
-            $options: "i",
-          },
+  const skip = (page - 1) * limit;
+
+  const filter = {};
+
+  if (search) {
+    filter.$or = [
+      {
+        studentName: {
+          $regex: search,
+          $options: "i",
         },
-        {
-          admissionId: {
-            $regex: search,
-            $options: "i",
-          },
+      },
+
+      {
+        admissionId: {
+          $regex: search,
+          $options: "i",
         },
-      ];
-    }
+      },
+    ];
+  }
 
-    if (className) {
-      filter.className = className;
-    }
+  if (className) {
+    filter.className = className;
+  }
 
-    if (section) {
-      filter.section = section;
-    }
+  if (section) {
+    filter.section = section;
+  }
 
-    if (gender) {
-      filter.gender = gender;
-    }
+  if (gender) {
+    filter.gender = gender;
+  }
 
-    if (yearOfJoining) {
-      filter.yearOfJoining = Number(yearOfJoining);
-    }
+  if (yearOfJoining) {
+    filter.yearOfJoining = Number(yearOfJoining);
+  }
 
-    const result = await studentRepository.getStudents(filter, skip, limit);
+  const result = await studentRepository.getStudents(filter, skip, limit);
 
-    return res.json({
-      success: true,
+  return successResponse(
+    res,
+    {
       page,
       limit,
       total: result.total,
-      data: result.students,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+      students: result.students,
+    },
+    "Students fetched successfully",
+  );
+});
+
+// Get student by ID
+const getStudentById = asyncHandler(async (req, res) => {
+  const student = await studentRepository.getStudentById(req.params.id);
+
+  if (!student) {
+    throw new ApiError("Student not found", 404);
   }
-};
 
-const getStudentById = async (req, res) => {
-  try {
-    const student = await studentRepository.getStudentById(req.params.id);
+  return successResponse(res, student, "Student fetched successfully");
+});
 
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: "Student not found",
-      });
-    }
+// Update student details
+const updateStudent = asyncHandler(async (req, res) => {
+  const student = await studentRepository.updateStudent(
+    req.params.id,
+    req.body,
+  );
 
-    return res.json({
-      success: true,
-      data: student,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+  if (!student) {
+    throw new ApiError("Student not found", 404);
   }
-};
 
-const updateStudent = async (req, res) => {
-  try {
-    const student = await studentRepository.updateStudent(
-      req.params.id,
-      req.body,
-    );
+  return successResponse(res, student, "Student updated successfully");
+});
 
-    return res.json({
-      success: true,
-      data: student,
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+// Delete student
+const deleteStudent = asyncHandler(async (req, res) => {
+  const student = await studentRepository.deleteStudent(req.params.id);
+
+  if (!student) {
+    throw new ApiError("Student not found", 404);
   }
-};
 
-const deleteStudent = async (req, res) => {
-  try {
-    await studentRepository.deleteStudent(req.params.id);
+  return successResponse(res, null, "Student deleted successfully");
+});
 
-    return res.json({
-      success: true,
-      message: "Student deleted successfully",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
+// Delete all students
+const deleteAllStudents = asyncHandler(async (req, res) => {
+  const result = await studentRepository.deleteAllStudents();
 
-const deleteAllStudents = async (req, res) => {
-  try {
-    const result = await studentRepository.deleteAllStudents();
-
-    return res.json({
-      success: true,
+  return successResponse(
+    res,
+    {
       deletedCount: result.deletedCount,
-      message: "All students deleted successfully",
-    });
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-};
+    },
+    "All students deleted successfully",
+  );
+});
+
 // Get all filter values
-const getFilters = async (req, res) => {
+const getFilters = asyncHandler(async (req, res) => {
+  const filters = await studentRepository.getFilters();
 
-  try {
+  return successResponse(res, filters, "Filters fetched successfully");
+});
 
-    const filters =
-      await studentRepository.getFilters();
-
-    return res.json({
-      success: true,
-      data: filters
-    });
-
-  } catch (error) {
-
-    return res.status(500).json({
-      success: false,
-      message: error.message
-    });
-
-  }
-
-};
 module.exports = {
   getStudents,
   getStudentById,
   updateStudent,
   deleteStudent,
   deleteAllStudents,
-  getFilters
+  getFilters,
 };

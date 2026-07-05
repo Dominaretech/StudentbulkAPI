@@ -1,396 +1,223 @@
-const parseExcel =
-require("../utils/excelParser");
+const parseExcel = require("../utils/excelParser");
 
-const validateStudentRow =
-require("../validators/student.validator");
+const validateStudentRow = require("../validators/student.validator");
 
-const generateUniqId =
-require("../utils/uniqIdGenerator");
+const generateUniqId = require("../utils/uniqIdGenerator");
 
-const generateErrorReport =
-require("../utils/errorReportGenerator");
+const generateErrorReport = require("../utils/errorReportGenerator");
 
 const {
   createUploadSession,
   getUploadSession,
-  deleteUploadSession
-} =
-require("../utils/uploadStore");
+  deleteUploadSession,
+} = require("../utils/uploadStore");
 
-const studentRepository =
-require("../repositories/student.repository");
+const studentRepository = require("../repositories/student.repository");
 
-const studentService =
-require("../services/student.service");
+const studentService = require("../services/student.service");
+// Middleware
+const asyncHandler = require("../middleware/asyncHandler");
 
-const previewUpload =
-async (req, res) => {
+// Utils
+const ApiError = require("../utils/ApiError");
 
-  try {
+const { successResponse } = require("../utils/response");
 
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Excel file required"
-      });
+// Preview student bulk upload
+const previewUpload = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    throw new ApiError("Excel file required", 400);
+  }
+
+  // Read Excel rows
+  const rows = parseExcel(req.file.path);
+
+  // Store valid and failed rows
+  const validRows = [];
+
+  const failedRows = [];
+
+  // Track duplicate values in Excel
+  const admissionSet = new Set();
+
+  const aadhaarSet = new Set();
+
+  // Validate each row
+  for (let index = 0; index < rows.length; index++) {
+    const row = rows[index];
+
+    // Validate required fields
+    const validation = validateStudentRow(row);
+
+    const rowErrors = [];
+
+    if (!validation.isValid) {
+      rowErrors.push(...validation.errors);
     }
 
-    const rows =
-      parseExcel(
-        req.file.path
-      );
+    // Check duplicate Admission ID in Excel
+    const admissionId = row["Admission ID"];
 
-    const validRows = [];
+    if (admissionSet.has(admissionId)) {
+      rowErrors.push("Duplicate Admission ID in Excel");
+    } else {
+      admissionSet.add(admissionId);
+    }
 
-    const failedRows = [];
+    // Check duplicate Aadhaar in Excel
+    const aadhaar = row["Adhar Number"];
 
-    const admissionSet =
-      new Set();
+    if (aadhaarSet.has(aadhaar)) {
+      rowErrors.push("Duplicate Aadhaar in Excel");
+    } else {
+      aadhaarSet.add(aadhaar);
+    }
 
-    const aadhaarSet =
-      new Set();
+    // Generate Unique ID
+    const uniqId = generateUniqId(row["Student name"], admissionId);
 
-    for (
-      let index = 0;
-      index < rows.length;
-      index++
-    ) {
+    // Check duplicates in Database
+    const dbErrors = await studentService.validateDuplicates(row, uniqId);
 
-      const row =
-        rows[index];
+    rowErrors.push(...dbErrors);
 
-      const validation =
-        validateStudentRow(
-          row
-        );
+    // Failed Row
+    if (rowErrors.length > 0) {
+      failedRows.push({
+        row: index + 4,
 
-      const rowErrors =
-        [];
+        errors: rowErrors,
 
-      if (
-        !validation.isValid
-      ) {
-        rowErrors.push(
-          ...validation.errors
-        );
-      }
-
-      const admissionId =
-        row[
-          "Admission ID"
-        ];
-
-      if (
-        admissionSet.has(
-          admissionId
-        )
-      ) {
-
-        rowErrors.push(
-          "Duplicate Admission ID in Excel"
-        );
-
-      } else {
-
-        admissionSet.add(
-          admissionId
-        );
-
-      }
-
-      const aadhaar =
-        row[
-          "Adhar Number"
-        ];
-
-      if (
-        aadhaarSet.has(
-          aadhaar
-        )
-      ) {
-
-        rowErrors.push(
-          "Duplicate Aadhaar in Excel"
-        );
-
-      } else {
-
-        aadhaarSet.add(
-          aadhaar
-        );
-
-      }
-
-      const uniqId =
-        generateUniqId(
-          row[
-            "Student name"
-          ],
-          admissionId
-        );
-
-      const dbErrors =
-        await studentService
-          .validateDuplicates(
-            row,
-            uniqId
-          );
-
-      rowErrors.push(
-        ...dbErrors
-      );
-
-      if (
-        rowErrors.length > 0
-      ) {
-
-        failedRows.push({
-  row: index + 4,
-  errors: rowErrors,
-  data: row
-});
-
-        continue;
-      }
-
-      validRows.push({
-
-        ...row,
-
-        uniqId
-
+        data: row,
       });
 
+      continue;
     }
 
-    let errorReport =
-      null;
+    // Valid Row
+    validRows.push({
+      ...row,
 
-    if (
-      failedRows.length > 0
-    ) {
+      uniqId,
+    });
+  }
+  let errorReport = null;
 
-      errorReport =
-        generateErrorReport(
-          failedRows
-        );
+  if (failedRows.length > 0) {
+    errorReport = generateErrorReport(failedRows);
+  }
 
-    }
-console.log("================================");
-console.log("Valid Rows:", validRows.length);
-console.log("Failed Rows:", failedRows.length);
-console.log("================================");
-    const uploadId =
-      createUploadSession(
-        validRows
-      );
-console.log("========================");
-console.log(failedRows);
-console.log("========================");
-    return res.status(200).json({
+  console.log("================================");
+  console.log("Valid Rows:", validRows.length);
+  console.log("Failed Rows:", failedRows.length);
+  console.log("================================");
 
-      success: true,
+  const uploadId = createUploadSession(validRows);
 
+  console.log("========================");
+  console.dir(failedRows, { depth: null });
+  console.log("========================");
+
+  return successResponse(
+    res,
+
+    {
       uploadId,
 
-      totalRows:
-        rows.length,
+      totalRows: rows.length,
 
-      successCount:
-        validRows.length,
+      successCount: validRows.length,
 
-      failedCount:
-        failedRows.length,
+      failedCount: failedRows.length,
 
       failedRows,
 
-      errorReport
+      errorReport,
+    },
 
-    });
+    "Preview generated successfully",
+  );
+});
 
-  } catch (error) {
+// Confirm student bulk upload
+const confirmUpload = asyncHandler(async (req, res) => {
+  const { uploadId } = req.body;
 
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message
-    });
-
+  if (!uploadId) {
+    throw new ApiError("uploadId required", 400);
   }
 
-};
+  const students = getUploadSession(uploadId);
 
-const confirmUpload =
-async (req, res) => {
-
-  try {
-
-    const {
-      uploadId
-    } = req.body;
-
-    if (
-      !uploadId
-    ) {
-
-      return res.status(400).json({
-        success: false,
-        message:
-          "uploadId required"
-      });
-
-    }
-
-    const students =
-      getUploadSession(
-        uploadId
-      );
-
-    if (
-      !students
-    ) {
-
-      return res.status(404).json({
-        success: false,
-        message:
-          "Upload session expired"
-      });
-
-    }
-console.log("================================");
-console.log("Students In Session:", students.length);
-console.log("================================");
-    const mappedStudents =
-      students.map(
-        student => ({
-
-          uniqId:
-            student.uniqId,
-
-          studentName:
-            student[
-              "Student name"
-            ],
-
-          className:
-            student[
-              "Class"
-            ],
-
-          section:
-            student[
-              "Section"
-            ],
-
-          rollNo:
-            student[
-              "Roll.no"
-            ],
-
-          admissionId:
-            student[
-              "Admission ID"
-            ],
-
-          fatherName:
-            student[
-              "Father name"
-            ],
-
-          fatherMobileNumber:
-            student[
-              "Father mobile number"
-            ],
-
-          motherName:
-            student[
-              "Mother name"
-            ],
-
-          motherMobileNumber:
-            student[
-              "Mother mobile number"
-            ],
-
-          yearOfJoining:
-            student[
-              "Year of joining"
-            ],
-
-          aadhaarNumber:
-            student[
-              "Adhar Number"
-            ],
-
-          gender:
-            student[
-              "Gender"
-            ],
-
-          dateOfBirth:
-            student[
-              "Date of Birth"
-            ],
-
-          caste:
-            student[
-              "Caste"
-            ],
-
-          communicationAddress:
-            student[
-              "Communication Address"
-            ],
-
-          permanentAddress:
-            student[
-              "Permanent Address"
-            ]
-
-        })
-      );
-
-    const insertedStudents =
-      await studentRepository
-        .bulkInsertStudents(
-          mappedStudents
-        );
-
-console.log("Mapped Students:");
-console.dir(mappedStudents, { depth: null });
-
-console.log("Inserted Students:");
-console.dir(insertedStudents, { depth: null });
-    deleteUploadSession(
-      uploadId
-    );
-
-    return res.status(201).json({
-
-      success: true,
-
-      insertedCount:
-        insertedStudents.length,
-
-      message:
-        "Students uploaded successfully"
-
-    });
-
-  } catch (error) {
-
-    return res.status(500).json({
-      success: false,
-      message:
-        error.message
-    });
-
+  if (!students) {
+    throw new ApiError("Upload session expired", 404);
   }
 
-};
+  console.log("================================");
+  console.log("Students In Session:", students.length);
+  console.log("================================");
+
+  const mappedStudents = students.map((student) => ({
+    uniqId: student.uniqId,
+
+    studentName: student["Student name"],
+
+    className: student["Class"],
+
+    section: student["Section"],
+
+    rollNo: student["Roll.no"],
+
+    admissionId: student["Admission ID"],
+
+    fatherName: student["Father name"],
+
+    fatherMobileNumber: student["Father mobile number"],
+
+    motherName: student["Mother name"],
+
+    motherMobileNumber: student["Mother mobile number"],
+
+    yearOfJoining: student["Year of joining"],
+
+    aadhaarNumber: student["Adhar Number"],
+
+    gender: student["Gender"],
+
+    dateOfBirth: student["Date of Birth"],
+
+    caste: student["Caste"],
+
+    communicationAddress: student["Communication Address"],
+
+    permanentAddress: student["Permanent Address"],
+  }));
+
+  const insertedStudents =
+    await studentRepository.bulkInsertStudents(mappedStudents);
+
+  console.log("Mapped Students:");
+  console.dir(mappedStudents, { depth: null });
+
+  console.log("Inserted Students:");
+  console.dir(insertedStudents, { depth: null });
+
+  deleteUploadSession(uploadId);
+
+  return successResponse(
+    res,
+
+    {
+      insertedCount: insertedStudents.length,
+    },
+
+    "Students uploaded successfully",
+
+    201,
+  );
+});
 
 module.exports = {
   previewUpload,
-  confirmUpload
+  confirmUpload,
 };
