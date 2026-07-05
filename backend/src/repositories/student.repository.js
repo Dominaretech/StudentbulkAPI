@@ -138,6 +138,18 @@ const getFilters = async () => {
   };
 
 };
+
+// Get all students for Excel export
+const getAllStudents = async () => {
+
+  return Student
+    .find({})
+    .sort({
+      createdAt: -1,
+    });
+
+};
+
 module.exports = {
   findByAdmissionId,
   findByUniqId,
@@ -147,5 +159,6 @@ module.exports = {
   updateStudent,
   deleteStudent,
   deleteAllStudents,
-  getFilters
+  getFilters,
+  getAllStudents
 };

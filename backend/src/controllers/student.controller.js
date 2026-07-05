@@ -23,6 +23,8 @@ const ApiError = require("../utils/ApiError");
 
 const { successResponse } = require("../utils/response");
 
+const { exportStudentsToExcel } = require("../utils/excelExport");
+
 // Preview student bulk upload
 const previewUpload = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -217,7 +219,34 @@ const confirmUpload = asyncHandler(async (req, res) => {
   );
 });
 
+const exportStudents = asyncHandler(async (req, res) => {
+
+  // Get all students
+  const students = await studentService.getAllStudents();
+
+  // Generate workbook
+  const workbook = await exportStudentsToExcel(students);
+
+  // Response headers
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+
+  res.setHeader(
+    "Content-Disposition",
+    'attachment; filename="students.xlsx"'
+  );
+
+  // Send Excel file
+  await workbook.xlsx.write(res);
+
+  res.end();
+
+});
+
 module.exports = {
   previewUpload,
   confirmUpload,
+  exportStudents,
 };

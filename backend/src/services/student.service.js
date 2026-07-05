@@ -21,6 +21,13 @@ const validateDuplicates = async (row, uniqId) => {
   return errors;
 };
 
+// Get all students for Excel export
+const getAllStudents = async () => {
+
+  return await studentRepository.getAllStudents();
+
+};
 module.exports = {
   validateDuplicates,
+  getAllStudents,
 };

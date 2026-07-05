@@ -1,29 +1,29 @@
-const express =
-require("express");
+const express = require("express");
 
-const router =
-express.Router();
+const router = express.Router();
 
-const upload =
-require("../middleware/upload.middleware");
+const upload = require("../middleware/upload.middleware");
 
 const {
-  previewUpload
-} =
-require("../controllers/student.controller");
+  previewUpload,
+  confirmUpload,
+  exportStudents,
+} = require("../controllers/student.controller");
 
-const {
-  confirmUpload
-} =
-require("../controllers/student.controller");
 router.post(
   "/preview-upload",
   upload.single("file"),
   previewUpload
 );
+
 router.post(
   "/confirm-upload",
   confirmUpload
 );
-module.exports =
-router;
+
+router.get(
+  "/export",
+  exportStudents
+);
+
+module.exports = router;

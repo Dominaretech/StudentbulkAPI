@@ -6,7 +6,9 @@ const ApiError = require("../utils/ApiError");
 const { successResponse } = require("../utils/response");
 
 // Get students with search, filters and pagination
+// Get students with search, filters and pagination
 const getStudents = asyncHandler(async (req, res) => {
+
   const page = Number(req.query.page) || 1;
 
   const limit = Number(req.query.limit) || 10;
@@ -26,7 +28,9 @@ const getStudents = asyncHandler(async (req, res) => {
   const filter = {};
 
   if (search) {
+
     filter.$or = [
+
       {
         studentName: {
           $regex: search,
@@ -40,7 +44,9 @@ const getStudents = asyncHandler(async (req, res) => {
           $options: "i",
         },
       },
+
     ];
+
   }
 
   if (className) {
@@ -59,20 +65,29 @@ const getStudents = asyncHandler(async (req, res) => {
     filter.yearOfJoining = Number(yearOfJoining);
   }
 
-  const result = await studentRepository.getStudents(filter, skip, limit);
+  const result =
+    await studentRepository.getStudents(
+      filter,
+      skip,
+      limit
+    );
 
-  return successResponse(
-    res,
-    {
-      page,
-      limit,
-      total: result.total,
-      students: result.students,
-    },
-    "Students fetched successfully",
-  );
+  // Keep pagination response compatible with frontend
+  return res.json({
+
+    success: true,
+
+    page,
+
+    limit,
+
+    total: result.total,
+
+    data: result.students,
+
+  });
+
 });
-
 // Get student by ID
 const getStudentById = asyncHandler(async (req, res) => {
   const student = await studentRepository.getStudentById(req.params.id);

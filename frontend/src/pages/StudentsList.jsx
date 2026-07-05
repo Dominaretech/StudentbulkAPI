@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../api/axios";
 import StudentTable from "../components/StudentTable";
-
+import { exportStudents } from "../services/studentService";
 function StudentsList() {
 
   // Students
@@ -163,6 +163,40 @@ function StudentsList() {
 
   };
 
+  // Export Students
+const handleExport = async () => {
+
+  try {
+
+    const response = await exportStudents();
+
+    const url = window.URL.createObjectURL(
+      new Blob([response.data])
+    );
+
+    const link = document.createElement("a");
+
+    link.href = url;
+
+    link.download = "students.xlsx";
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    window.URL.revokeObjectURL(url);
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert("Export Failed");
+
+  }
+
+};
   const totalPages =
     Math.ceil(total / limit);
 
@@ -173,9 +207,25 @@ function StudentsList() {
 
   <div className="flex justify-between items-center mb-6">
 
-    <h1 className="text-3xl font-bold">
-      Students List
-    </h1>
+  <h1 className="text-3xl font-bold">
+    Students List
+  </h1>
+
+  <div className="flex gap-3">
+
+    <button
+      onClick={handleExport}
+      className="
+      bg-green-600
+      hover:bg-green-700
+      text-white
+      px-5
+      py-2
+      rounded
+      "
+    >
+      Export Excel
+    </button>
 
     <button
       onClick={handleDeleteAll}
@@ -193,6 +243,7 @@ function StudentsList() {
 
   </div>
 
+</div>
   {/* Filters */}
 
   <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">

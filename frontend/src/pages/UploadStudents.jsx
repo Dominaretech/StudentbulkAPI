@@ -1,155 +1,120 @@
 import { useState } from "react";
 import api from "../api/axios";
 
-import FileUploadCard
-from "../components/FileUploadCard";
-
-import PreviewSummary
-from "../components/PreviewSummary";
+import FileUploadCard from "../components/FileUploadCard";
+import PreviewSummary from "../components/PreviewSummary";
 
 function UploadStudents() {
 
-  const [file, setFile] =
-    useState(null);
+  const [file, setFile] = useState(null);
 
-  const [previewData,
-    setPreviewData] =
-    useState(null);
+  const [previewData, setPreviewData] = useState(null);
 
-  const [loading,
-    setLoading] =
-    useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handlePreview =
-    async () => {
+  // Preview Upload
+  const handlePreview = async () => {
 
-      if (!file) {
-        alert(
-          "Select Excel File"
-        );
-        return;
-      }
+    if (!file) {
+      alert("Select Excel File");
+      return;
+    }
 
-      try {
+    try {
 
-        setLoading(true);
+      setLoading(true);
 
-        const formData =
-          new FormData();
+      const formData = new FormData();
 
-        formData.append(
-          "file",
-          file
-        );
+      formData.append("file", file);
 
-        const response =
-          await api.post(
-            "/students/preview-upload",
-            formData
-          );
+      const response = await api.post(
+        "/students/preview-upload",
+        formData
+      );
 
-        setPreviewData(
-          response.data
-        );
+      // IMPORTANT
+      setPreviewData(response.data.data);
 
-      } catch (error) {
+    } catch (error) {
 
-        console.error(
-          error
-        );
+      console.error(error);
 
-      } finally {
+      alert(
+        error.response?.data?.message ||
+        "Preview Failed"
+      );
 
-        setLoading(false);
+    } finally {
 
-      }
+      setLoading(false);
 
-    };
+    }
 
-  const handleConfirm =
-    async () => {
+  };
 
-      try {
+  // Confirm Upload
+  const handleConfirm = async () => {
 
-        const response =
-          await api.post(
-            "/students/confirm-upload",
-            {
-              uploadId:
-                previewData.uploadId
-            }
-          );
+    try {
 
-        alert(
-          response.data.message
-        );
+      const response = await api.post(
+        "/students/confirm-upload",
+        {
+          uploadId: previewData.uploadId
+        }
+      );
 
-        setPreviewData(
-          null
-        );
+      alert(response.data.message);
 
-        setFile(
-          null
-        );
+      setPreviewData(null);
 
-      } catch (error) {
+      setFile(null);
 
-        console.error(
-          error
-        );
+    } catch (error) {
 
-      }
+      console.error(error);
 
-    };
+      alert(
+        error.response?.data?.message ||
+        "Upload Failed"
+      );
+
+    }
+
+  };
 
   return (
+
     <div className="p-6">
 
-      <h1
-        className="
-        text-3xl
-        font-bold
-        mb-6
-        "
-      >
+      <h1 className="text-3xl font-bold mb-6">
         Student Upload
       </h1>
 
       <FileUploadCard
         file={file}
         setFile={setFile}
-        onPreview={
-          handlePreview
-        }
+        onPreview={handlePreview}
       />
 
-      {
-        loading && (
-          <p
-            className="
-            mt-4
-            "
-          >
-            Loading...
-          </p>
-        )
-      }
+      {loading && (
+        <p className="mt-4">
+          Loading...
+        </p>
+      )}
 
-      {
-        previewData && (
-          <PreviewSummary
-            previewData={
-              previewData
-            }
-            onConfirm={
-              handleConfirm
-            }
-          />
-        )
-      }
+      {previewData && (
+        <PreviewSummary
+          previewData={previewData}
+          onConfirm={handleConfirm}
+        />
+      )}
 
     </div>
+
   );
+
 }
 
 export default UploadStudents;
